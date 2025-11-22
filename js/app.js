@@ -769,18 +769,8 @@ class ASI1 {
         this.welcomeScreen.classList.add('hidden');
         this.chatInterface.classList.remove('hidden');
 
-        // Restore previous conversation messages to UI
-        if (this.conversationHistory.length > 0) {
-            this.conversationHistory.forEach(msg => {
-                this.addMessage(msg.role, msg.content);
-            });
-
-            // Show a friendly reminder about continuing the conversation
-            const greeting = this.getContextualGreeting();
-            setTimeout(() => {
-                this.addMessage('assistant', greeting);
-            }, 500);
-        }
+        // Don't restore previous messages to UI on fresh page load
+        // This keeps the chat clean, but conversation history is still loaded for context
 
         // Run autonomous learning (once per day)
         if (this.shouldRunAutonomousLearning()) {
@@ -1119,7 +1109,7 @@ class ASI1 {
     /**
      * Speak text using Web Speech API with Korean voice
      */
-    speak(text) {
+    speak(text, retryCount = 0) {
         if (!this.synthesis) {
             console.error('Speech synthesis not available');
             return;
@@ -1130,7 +1120,15 @@ class ASI1 {
             return;
         }
 
-        console.log('Speaking:', text);
+        // Limit text length to avoid synthesis-failed errors
+        const maxLength = 300;
+        let textToSpeak = text;
+        if (text.length > maxLength) {
+            textToSpeak = text.substring(0, maxLength) + '...';
+            console.warn(`Text truncated from ${text.length} to ${maxLength} characters`);
+        }
+
+        console.log('Speaking:', textToSpeak);
         console.log('Auto-speak enabled:', this.settings.autoSpeak);
 
         // Cancel any ongoing speech
@@ -1138,7 +1136,7 @@ class ASI1 {
 
         // Small delay to ensure cancel completes
         setTimeout(() => {
-            const utterance = new SpeechSynthesisUtterance(text);
+            const utterance = new SpeechSynthesisUtterance(textToSpeak);
 
             // Use settings for voice control (with fallbacks to CONFIG defaults)
             utterance.rate = this.settings.voiceRate || CONFIG.VOICE.rate;
@@ -1177,14 +1175,27 @@ class ASI1 {
             };
 
             utterance.onend = () => {
-                console.log('Speech ended');
+                console.log('Speech ended successfully');
                 if (statusText && !this.voiceMode) {
                     statusText.textContent = 'ASI1 is ready';
                 }
             };
 
             utterance.onerror = (event) => {
-                console.error('Speech error:', event);
+                console.error('Speech synthesis error:', event.error);
+
+                // Retry logic for synthesis-failed errors
+                if (event.error === 'synthesis-failed' && retryCount < 2) {
+                    console.warn(`Retrying speech synthesis (attempt ${retryCount + 1}/2)...`);
+                    setTimeout(() => {
+                        this.speak(text, retryCount + 1);
+                    }, 500);
+                } else if (event.error === 'synthesis-failed') {
+                    console.error('Speech synthesis failed after retries. Text:', textToSpeak);
+                    if (statusText && !this.voiceMode) {
+                        statusText.textContent = 'ASI1 is ready';
+                    }
+                }
             };
 
             console.log('Calling synthesis.speak()');
