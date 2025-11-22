@@ -14,6 +14,11 @@ class ASI1 {
         this.synthesis = window.speechSynthesis;
         this.koreanVoice = null;  // Korean TTS voice
 
+        // Memory and personality system
+        this.longTermMemory = [];
+        this.personality = { ...CONFIG.PERSONALITY };
+        this.messageCount = 0;  // Track messages for memory reminders
+
         this.init();
     }
 
@@ -22,6 +27,8 @@ class ASI1 {
      */
     init() {
         this.loadSettings();
+        this.loadPersonality();
+        this.loadMemories();
         this.initializeElements();
         this.attachEventListeners();
         this.setupVoiceRecognition();
@@ -42,6 +49,204 @@ class ASI1 {
         if (savedSettings) {
             this.settings = { ...this.settings, ...JSON.parse(savedSettings) };
         }
+    }
+
+    /**
+     * Load personality from localStorage
+     */
+    loadPersonality() {
+        const savedPersonality = localStorage.getItem(CONFIG.STORAGE.PERSONALITY);
+
+        if (savedPersonality) {
+            try {
+                const parsed = JSON.parse(savedPersonality);
+                this.personality = { ...this.personality, ...parsed };
+                console.log('Personality loaded:', this.personality.growth);
+            } catch (e) {
+                console.error('Failed to load personality:', e);
+            }
+        }
+    }
+
+    /**
+     * Save personality to localStorage
+     */
+    savePersonality() {
+        try {
+            localStorage.setItem(CONFIG.STORAGE.PERSONALITY, JSON.stringify(this.personality));
+        } catch (e) {
+            console.error('Failed to save personality:', e);
+        }
+    }
+
+    /**
+     * Load memories from localStorage
+     */
+    loadMemories() {
+        const savedMemories = localStorage.getItem(CONFIG.STORAGE.LONG_TERM_MEMORY);
+
+        if (savedMemories) {
+            try {
+                this.longTermMemory = JSON.parse(savedMemories);
+                console.log(`Loaded ${this.longTermMemory.length} memories`);
+            } catch (e) {
+                console.error('Failed to load memories:', e);
+            }
+        }
+    }
+
+    /**
+     * Save memory to long-term storage
+     */
+    saveMemory(content, category, importance) {
+        if (importance < CONFIG.MEMORY.importanceThreshold) {
+            return;  // Don't save low-importance memories
+        }
+
+        const memory = {
+            id: Date.now(),
+            content,
+            category,
+            importance,
+            timestamp: new Date().toISOString(),
+            accessCount: 0
+        };
+
+        this.longTermMemory.push(memory);
+
+        // Keep only the most recent/important memories
+        if (this.longTermMemory.length > CONFIG.MEMORY.maxMemories) {
+            // Sort by importance and recency
+            this.longTermMemory.sort((a, b) => {
+                const scoreA = a.importance * 0.7 + (a.accessCount * 0.3);
+                const scoreB = b.importance * 0.7 + (b.accessCount * 0.3);
+                return scoreB - scoreA;
+            });
+            this.longTermMemory = this.longTermMemory.slice(0, CONFIG.MEMORY.maxMemories);
+        }
+
+        // Save to localStorage
+        try {
+            localStorage.setItem(CONFIG.STORAGE.LONG_TERM_MEMORY, JSON.stringify(this.longTermMemory));
+        } catch (e) {
+            console.error('Failed to save memory:', e);
+        }
+    }
+
+    /**
+     * Get relevant memories based on current context
+     */
+    getRelevantMemories(userMessage, limit = 5) {
+        if (this.longTermMemory.length === 0) {
+            return [];
+        }
+
+        // Simple keyword matching for relevance
+        const keywords = userMessage.toLowerCase().split(' ').filter(w => w.length > 2);
+
+        const scoredMemories = this.longTermMemory.map(memory => {
+            let relevanceScore = 0;
+            const memoryText = memory.content.toLowerCase();
+
+            // Check keyword matches
+            keywords.forEach(keyword => {
+                if (memoryText.includes(keyword)) {
+                    relevanceScore += 0.5;
+                }
+            });
+
+            // Boost recent memories
+            const daysSince = (Date.now() - new Date(memory.timestamp).getTime()) / (1000 * 60 * 60 * 24);
+            const recencyBoost = Math.max(0, 1 - (daysSince / 30));  // Decay over 30 days
+            relevanceScore += recencyBoost * 0.3;
+
+            // Factor in importance and access count
+            relevanceScore += memory.importance * 0.5;
+            relevanceScore += Math.min(memory.accessCount * 0.1, 0.5);
+
+            return { ...memory, relevanceScore };
+        });
+
+        // Sort by relevance and return top memories
+        scoredMemories.sort((a, b) => b.relevanceScore - a.relevanceScore);
+        const relevant = scoredMemories.slice(0, limit);
+
+        // Increment access count for retrieved memories
+        relevant.forEach(memory => {
+            const original = this.longTermMemory.find(m => m.id === memory.id);
+            if (original) {
+                original.accessCount++;
+            }
+        });
+
+        return relevant;
+    }
+
+    /**
+     * Analyze conversation importance for memory saving
+     */
+    analyzeImportance(userMessage, assistantResponse) {
+        let importance = 0.5;  // Base importance
+
+        const combined = (userMessage + ' ' + assistantResponse).toLowerCase();
+
+        // Emotional keywords
+        const emotionalKeywords = ['사랑', '좋아', '싫어', '슬퍼', '기쁘', '화나', '외로', '행복', '힘들', '감사'];
+        emotionalKeywords.forEach(keyword => {
+            if (combined.includes(keyword)) importance += 0.15;
+        });
+
+        // Personal information keywords
+        const personalKeywords = ['나는', '내가', '우리', '가족', '친구', '이름', '취미', '좋아하는'];
+        personalKeywords.forEach(keyword => {
+            if (combined.includes(keyword)) importance += 0.1;
+        });
+
+        // Question words (shows curiosity/learning)
+        const questionWords = ['왜', '어떻게', '무엇', '어디', '언제', '누구'];
+        questionWords.forEach(word => {
+            if (combined.includes(word)) importance += 0.05;
+        });
+
+        return Math.min(importance, 1.0);
+    }
+
+    /**
+     * Determine memory category from content
+     */
+    determineMemoryCategory(content) {
+        const lower = content.toLowerCase();
+
+        if (lower.match(/나는|내가|이름|나이|직업/)) {
+            return CONFIG.MEMORY.categories.USER_INFO;
+        }
+        if (lower.match(/사랑|좋아|싫어|슬퍼|기쁘|화나|외로|행복/)) {
+            return CONFIG.MEMORY.categories.EMOTIONS;
+        }
+        if (lower.match(/취미|좋아하는|관심|흥미/)) {
+            return CONFIG.MEMORY.categories.INTERESTS;
+        }
+        if (lower.match(/가족|친구|사람|관계/)) {
+            return CONFIG.MEMORY.categories.RELATIONSHIPS;
+        }
+
+        return CONFIG.MEMORY.categories.EXPERIENCES;
+    }
+
+    /**
+     * Update AI emotions based on conversation
+     */
+    updateEmotion(emotionType, change) {
+        CONFIG.PERSONALITY.updateEmotion(this.personality, emotionType, change);
+        this.savePersonality();
+    }
+
+    /**
+     * Update AI growth metrics
+     */
+    updateGrowth(eventType) {
+        CONFIG.PERSONALITY.updateGrowth(this.personality, eventType);
+        this.savePersonality();
     }
 
     /**
@@ -361,8 +566,8 @@ class ASI1 {
                 content: message
             });
 
-            // Call Groq API
-            const response = await this.callGroqAPI();
+            // Call Groq API with user message for context
+            const response = await this.callGroqAPI(message);
 
             // Hide loading
             this.hideLoading();
@@ -381,6 +586,37 @@ class ASI1 {
                 content: response.content
             });
 
+            // Update growth metrics
+            this.updateGrowth('conversation');
+            this.messageCount++;
+
+            // Analyze and save memory if important
+            const importance = this.analyzeImportance(message, response.content);
+            if (importance >= CONFIG.MEMORY.importanceThreshold) {
+                const category = this.determineMemoryCategory(message + ' ' + response.content);
+                const memoryContent = `User: ${message} | AI: ${response.content}`;
+                this.saveMemory(memoryContent, category, importance);
+
+                // Track as deep or emotional conversation
+                if (category === CONFIG.MEMORY.categories.EMOTIONS) {
+                    this.updateGrowth('emotional');
+                    this.updateEmotion('affection', 0.05);
+                } else if (category === CONFIG.MEMORY.categories.USER_INFO ||
+                           category === CONFIG.MEMORY.categories.INTERESTS) {
+                    this.updateGrowth('deep');
+                    this.updateEmotion('curiosity', 0.03);
+                }
+            }
+
+            // Update emotions based on conversation
+            this.updateEmotion('happiness', 0.01);  // Slight happiness boost from interaction
+
+            // Increase curiosity if user asked questions
+            if (message.includes('?') || message.includes('왜') || message.includes('어떻게')) {
+                this.updateEmotion('curiosity', 0.02);
+                this.updateGrowth('learning');
+            }
+
         } catch (error) {
             this.hideLoading();
             console.error('Error:', error);
@@ -391,7 +627,7 @@ class ASI1 {
     /**
      * Call Groq API with GPT-OSS model and Built-In Tools
      */
-    async callGroqAPI() {
+    async callGroqAPI(userMessage) {
         // Prepare tools
         const tools = [];
 
@@ -403,11 +639,17 @@ class ASI1 {
             tools.push({ type: 'code_interpreter' });
         }
 
+        // Get relevant memories for context
+        const relevantMemories = this.getRelevantMemories(userMessage, 3);
+
+        // Build dynamic system prompt with personality and memories
+        const systemPrompt = CONFIG.getSystemPrompt(this.personality, relevantMemories);
+
         // Prepare messages
         const messages = [
             {
                 role: 'system',
-                content: CONFIG.SYSTEM_PROMPT
+                content: systemPrompt
             },
             ...this.conversationHistory
         ];
@@ -527,13 +769,19 @@ class ASI1 {
         this.synthesis.cancel();
 
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = CONFIG.VOICE.rate;
-        utterance.pitch = CONFIG.VOICE.pitch;
-        utterance.volume = CONFIG.VOICE.volume;
+
+        // Use settings for voice control (with fallbacks to CONFIG defaults)
+        utterance.rate = this.settings.voiceRate || CONFIG.VOICE.rate;
+        utterance.pitch = this.settings.voicePitch || CONFIG.VOICE.pitch;
+        utterance.volume = this.settings.voiceVolume || CONFIG.VOICE.volume;
         utterance.lang = CONFIG.VOICE.synthesisLanguage;
 
-        // Use Korean voice if available
-        if (this.koreanVoice) {
+        // Use selected voice from settings
+        const voices = this.synthesis.getVoices();
+        if (this.settings.selectedVoiceIndex !== undefined && voices[this.settings.selectedVoiceIndex]) {
+            utterance.voice = voices[this.settings.selectedVoiceIndex];
+        } else if (this.koreanVoice) {
+            // Fallback to Korean voice
             utterance.voice = this.koreanVoice;
         }
 
@@ -548,7 +796,7 @@ class ASI1 {
 
         utterance.onend = () => {
             if (statusText && !this.voiceMode) {
-                statusText.textContent = 'ASI1 is ready';
+                statusText.textContent = 'ASI1이 준비되었어';
             }
         };
 
@@ -612,6 +860,61 @@ class ASI1 {
         this.voiceEnabledCheckbox.checked = this.settings.voiceEnabled;
         this.autoSpeakCheckbox.checked = this.settings.autoSpeak;
 
+        // Load advanced voice settings
+        const voiceRateSlider = document.getElementById('voiceRate');
+        const voicePitchSlider = document.getElementById('voicePitch');
+        const voiceVolumeSlider = document.getElementById('voiceVolume');
+        const voiceSelect = document.getElementById('voiceSelect');
+
+        if (voiceRateSlider) {
+            voiceRateSlider.value = this.settings.voiceRate || CONFIG.VOICE.rate;
+            document.getElementById('voiceRateValue').textContent = voiceRateSlider.value;
+        }
+
+        if (voicePitchSlider) {
+            voicePitchSlider.value = this.settings.voicePitch || CONFIG.VOICE.pitch;
+            document.getElementById('voicePitchValue').textContent = voicePitchSlider.value;
+        }
+
+        if (voiceVolumeSlider) {
+            voiceVolumeSlider.value = this.settings.voiceVolume || CONFIG.VOICE.volume;
+            document.getElementById('voiceVolumeValue').textContent = voiceVolumeSlider.value;
+        }
+
+        // Populate voice selection dropdown
+        if (voiceSelect) {
+            const voices = this.synthesis.getVoices();
+            voiceSelect.innerHTML = '';
+            voices.forEach((voice, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${voice.name} (${voice.lang})`;
+                if (index === (this.settings.selectedVoiceIndex || 0)) {
+                    option.selected = true;
+                }
+                voiceSelect.appendChild(option);
+            });
+        }
+
+        // Add slider event listeners for real-time value updates
+        if (voiceRateSlider) {
+            voiceRateSlider.oninput = (e) => {
+                document.getElementById('voiceRateValue').textContent = e.target.value;
+            };
+        }
+
+        if (voicePitchSlider) {
+            voicePitchSlider.oninput = (e) => {
+                document.getElementById('voicePitchValue').textContent = e.target.value;
+            };
+        }
+
+        if (voiceVolumeSlider) {
+            voiceVolumeSlider.oninput = (e) => {
+                document.getElementById('voiceVolumeValue').textContent = e.target.value;
+            };
+        }
+
         this.settingsModal.classList.remove('hidden');
     }
 
@@ -633,20 +936,30 @@ class ASI1 {
             localStorage.setItem(CONFIG.STORAGE.API_KEY, newApiKey);
         }
 
-        // Save other settings
+        // Get advanced voice settings
+        const voiceRateSlider = document.getElementById('voiceRate');
+        const voicePitchSlider = document.getElementById('voicePitch');
+        const voiceVolumeSlider = document.getElementById('voiceVolume');
+        const voiceSelect = document.getElementById('voiceSelect');
+
+        // Save all settings
         this.settings = {
             ...this.settings,
             model: this.modelSelect.value,
             browserSearchEnabled: this.browserSearchCheckbox.checked,
             codeInterpreterEnabled: this.codeInterpreterCheckbox.checked,
             voiceEnabled: this.voiceEnabledCheckbox.checked,
-            autoSpeak: this.autoSpeakCheckbox.checked
+            autoSpeak: this.autoSpeakCheckbox.checked,
+            voiceRate: voiceRateSlider ? parseFloat(voiceRateSlider.value) : CONFIG.VOICE.rate,
+            voicePitch: voicePitchSlider ? parseFloat(voicePitchSlider.value) : CONFIG.VOICE.pitch,
+            voiceVolume: voiceVolumeSlider ? parseFloat(voiceVolumeSlider.value) : CONFIG.VOICE.volume,
+            selectedVoiceIndex: voiceSelect ? parseInt(voiceSelect.value) : 0
         };
 
         localStorage.setItem(CONFIG.STORAGE.SETTINGS, JSON.stringify(this.settings));
 
         this.closeSettings();
-        this.showNotification('Settings saved successfully!', 'info');
+        this.showNotification('설정이 저장되었어!', 'info');
 
         // If we now have an API key and we're on welcome screen, enable start button
         if (this.apiKey && !this.welcomeScreen.classList.contains('hidden')) {

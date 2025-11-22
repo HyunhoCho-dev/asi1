@@ -601,6 +601,67 @@ body {
     cursor: pointer;
 }
 
+/* Slider styles */
+.setting-group input[type="range"] {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--color-border);
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+}
+
+.setting-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.setting-group input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    cursor: pointer;
+    border: none;
+    transition: all var(--transition-fast);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.setting-group input[type="range"]:hover::-webkit-slider-thumb {
+    background: var(--color-primary-dark);
+    transform: scale(1.1);
+}
+
+.setting-group input[type="range"]:hover::-moz-range-thumb {
+    background: var(--color-primary-dark);
+    transform: scale(1.1);
+}
+
+.setting-group input[type="range"]:active::-webkit-slider-thumb {
+    background: var(--color-primary-dark);
+    transform: scale(1.2);
+}
+
+.setting-group input[type="range"]:active::-moz-range-thumb {
+    background: var(--color-primary-dark);
+    transform: scale(1.2);
+}
+
+.setting-group label span {
+    float: right;
+    color: var(--color-primary);
+    font-weight: 600;
+}
+
 .modal-footer {
     display: flex;
     gap: var(--spacing-sm);
