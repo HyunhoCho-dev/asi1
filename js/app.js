@@ -298,6 +298,10 @@ class ASI1 {
             localStorage.removeItem(CONFIG.STORAGE.PERSONALITY);
             localStorage.removeItem(CONFIG.STORAGE.GROWTH_DATA);
 
+            // Reset learning and consolidation dates
+            localStorage.removeItem(CONFIG.STORAGE.LAST_LEARNING_DATE);
+            localStorage.removeItem(CONFIG.STORAGE.LAST_CONSOLIDATION_DATE);
+
             // Clear chat messages from UI
             this.chatMessages.innerHTML = '';
 
@@ -310,6 +314,236 @@ class ASI1 {
             console.error('Failed to reset memories:', e);
             this.showNotification('초기화 중 오류가 발생했어. 콘솔을 확인해줘.', 'error');
         }
+    }
+
+    /**
+     * Check if autonomous learning should run (once per day)
+     */
+    shouldRunAutonomousLearning() {
+        if (!CONFIG.LEARNING.enabled) return false;
+
+        const conversationCount = this.personality.growth.conversationCount || 0;
+        if (conversationCount < CONFIG.LEARNING.minConversationsBeforeLearning) {
+            return false;
+        }
+
+        const lastDate = localStorage.getItem(CONFIG.STORAGE.LAST_LEARNING_DATE);
+        const today = new Date().toDateString();
+
+        return lastDate !== today;
+    }
+
+    /**
+     * Check if memory consolidation should run (once per day)
+     */
+    shouldRunMemoryConsolidation() {
+        if (!CONFIG.CONSOLIDATION.enabled) return false;
+        if (this.longTermMemory.length < 10) return false;  // Need at least 10 memories
+
+        const lastDate = localStorage.getItem(CONFIG.STORAGE.LAST_CONSOLIDATION_DATE);
+        const today = new Date().toDateString();
+
+        return lastDate !== today;
+    }
+
+    /**
+     * Autonomous Learning - AI searches for topics it wants to learn about
+     */
+    async performAutonomousLearning() {
+        console.log('🧠 Starting autonomous learning...');
+
+        try {
+            // Extract topics of interest from recent conversations
+            const topics = this.extractLearningTopics();
+
+            if (topics.length === 0) {
+                console.log('No interesting topics found for learning');
+                return;
+            }
+
+            // Pick a random topic to learn about
+            const topicToLearn = topics[Math.floor(Math.random() * topics.length)];
+
+            console.log(`📚 Learning about: ${topicToLearn}`);
+
+            // Use Groq API to search and summarize
+            const searchPrompt = `"${topicToLearn}"에 대해 웹 검색해서 핵심 내용 3-4문장으로 요약해줘.`;
+
+            const response = await fetch(`${CONFIG.API.BASE_URL}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: this.settings.model,
+                    messages: [
+                        {
+                            role: 'user',
+                            content: searchPrompt
+                        }
+                    ],
+                    tools: [{ type: 'browser_search' }],
+                    max_tokens: 500,
+                    temperature: 0.7
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to perform autonomous learning');
+            }
+
+            const data = await response.json();
+            const learningContent = data.choices[0].message.content;
+
+            // Save as a high-importance memory
+            const memoryContent = `[자율학습] ${topicToLearn}: ${learningContent}`;
+            this.saveMemory(memoryContent, CONFIG.MEMORY.categories.EXPERIENCES, 0.9);
+
+            // Update growth metrics
+            this.updateGrowth('learning');
+            this.updateEmotion('curiosity', 0.1);
+
+            // Mark learning as done for today
+            localStorage.setItem(CONFIG.STORAGE.LAST_LEARNING_DATE, new Date().toDateString());
+
+            console.log('✅ Autonomous learning completed successfully');
+            console.log('Learned:', learningContent.substring(0, 100) + '...');
+
+        } catch (error) {
+            console.error('Failed autonomous learning:', error);
+        }
+    }
+
+    /**
+     * Extract interesting topics from recent conversations
+     */
+    extractLearningTopics() {
+        const topics = new Set();
+
+        // Analyze recent conversation history
+        const recentMessages = this.conversationHistory.slice(-10);
+
+        recentMessages.forEach(msg => {
+            if (msg.role === 'user') {
+                const content = msg.content.toLowerCase();
+
+                // Extract nouns and interesting keywords (simple Korean extraction)
+                const keywords = content.split(' ').filter(word =>
+                    word.length > 2 &&
+                    !['이거', '그거', '저거', '이게', '그게', '저게', '뭐야', '어떻게', '왜'].includes(word)
+                );
+
+                keywords.forEach(keyword => {
+                    if (topics.size < CONFIG.LEARNING.searchTopics * 2) {
+                        topics.add(keyword.replace(/[?!.,]/g, ''));
+                    }
+                });
+            }
+        });
+
+        // Also extract from recent memories
+        const recentMemories = this.longTermMemory.slice(-5);
+        recentMemories.forEach(memory => {
+            if (memory.category === CONFIG.MEMORY.categories.INTERESTS) {
+                const keywords = memory.content.split(' ').filter(w => w.length > 3);
+                keywords.slice(0, 2).forEach(kw => topics.add(kw));
+            }
+        });
+
+        return Array.from(topics).slice(0, CONFIG.LEARNING.searchTopics);
+    }
+
+    /**
+     * Memory Consolidation - Organize and optimize memories
+     */
+    async performMemoryConsolidation() {
+        console.log('🗂️ Starting memory consolidation...');
+
+        try {
+            const originalCount = this.longTermMemory.length;
+
+            // Step 1: Remove low importance memories
+            this.longTermMemory = this.longTermMemory.filter(memory =>
+                memory.importance >= CONFIG.CONSOLIDATION.minImportanceToKeep
+            );
+
+            // Step 2: Merge similar memories
+            this.mergeSimilarMemories();
+
+            // Step 3: Update access counts and importance
+            this.longTermMemory.forEach(memory => {
+                // Decay importance slightly over time
+                const daysSince = (Date.now() - new Date(memory.timestamp).getTime()) / (1000 * 60 * 60 * 24);
+                if (daysSince > 30) {
+                    memory.importance = Math.max(0.5, memory.importance * 0.95);
+                }
+            });
+
+            // Step 4: Save consolidated memories
+            localStorage.setItem(CONFIG.STORAGE.LONG_TERM_MEMORY, JSON.stringify(this.longTermMemory));
+
+            // Mark consolidation as done for today
+            localStorage.setItem(CONFIG.STORAGE.LAST_CONSOLIDATION_DATE, new Date().toDateString());
+
+            const removedCount = originalCount - this.longTermMemory.length;
+            console.log(`✅ Memory consolidation completed: ${originalCount} → ${this.longTermMemory.length} memories (removed ${removedCount})`);
+
+        } catch (error) {
+            console.error('Failed memory consolidation:', error);
+        }
+    }
+
+    /**
+     * Merge similar memories to avoid redundancy
+     */
+    mergeSimilarMemories() {
+        const merged = [];
+        const used = new Set();
+
+        this.longTermMemory.forEach((memory, i) => {
+            if (used.has(i)) return;
+
+            let similar = [memory];
+
+            // Find similar memories
+            for (let j = i + 1; j < this.longTermMemory.length; j++) {
+                if (used.has(j)) continue;
+
+                const other = this.longTermMemory[j];
+
+                // Check if memories are similar (same category and overlapping keywords)
+                if (memory.category === other.category) {
+                    const words1 = memory.content.toLowerCase().split(' ');
+                    const words2 = other.content.toLowerCase().split(' ');
+
+                    const commonWords = words1.filter(w => words2.includes(w) && w.length > 2).length;
+                    const similarity = commonWords / Math.min(words1.length, words2.length);
+
+                    if (similarity > CONFIG.CONSOLIDATION.similarityThreshold) {
+                        similar.push(other);
+                        used.add(j);
+                    }
+                }
+            }
+
+            // If we found similar memories, merge them
+            if (similar.length > 1) {
+                const mergedMemory = {
+                    id: memory.id,
+                    content: `${memory.content} (${similar.length}개의 유사한 기억 통합됨)`,
+                    category: memory.category,
+                    importance: Math.max(...similar.map(m => m.importance)),
+                    timestamp: memory.timestamp,
+                    accessCount: similar.reduce((sum, m) => sum + m.accessCount, 0)
+                };
+                merged.push(mergedMemory);
+            } else {
+                merged.push(memory);
+            }
+        });
+
+        this.longTermMemory = merged;
     }
 
     /**
@@ -546,6 +780,22 @@ class ASI1 {
             setTimeout(() => {
                 this.addMessage('assistant', greeting);
             }, 500);
+        }
+
+        // Run autonomous learning (once per day)
+        if (this.shouldRunAutonomousLearning()) {
+            console.log('⏰ Time for autonomous learning!');
+            setTimeout(() => {
+                this.performAutonomousLearning();
+            }, 2000);  // Wait 2 seconds after start
+        }
+
+        // Run memory consolidation (once per day)
+        if (this.shouldRunMemoryConsolidation()) {
+            console.log('⏰ Time for memory consolidation!');
+            setTimeout(() => {
+                this.performMemoryConsolidation();
+            }, 5000);  // Wait 5 seconds after start
         }
 
         this.messageInput.focus();
