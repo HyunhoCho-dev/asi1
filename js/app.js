@@ -927,8 +927,13 @@ class ASI1 {
             this.addMessage('assistant', response.content, response.tools);
 
             // Speak response if enabled
+            console.log('Response received, checking autoSpeak:', this.settings.autoSpeak);
+            console.log('Settings object:', this.settings);
             if (this.settings.autoSpeak) {
+                console.log('Calling speak() with response');
                 this.speak(response.content);
+            } else {
+                console.warn('AutoSpeak is disabled, not speaking');
             }
 
             // Add to conversation history
@@ -1343,7 +1348,7 @@ class ASI1 {
         localStorage.setItem(CONFIG.STORAGE.SETTINGS, JSON.stringify(this.settings));
 
         this.closeSettings();
-        this.showNotification('설정이 저장되었어!', 'info');
+        this.showNotification('Settings saved!', 'info');
 
         // If we now have an API key and we're on welcome screen, enable start button
         if (this.apiKey && !this.welcomeScreen.classList.contains('hidden')) {
