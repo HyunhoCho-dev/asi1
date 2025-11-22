@@ -721,23 +721,37 @@ class ASI1 {
 
     /**
      * Load Korean voice for speech synthesis
+     * Prioritizes local (offline) voices over online voices for reliability
      */
     loadKoreanVoice() {
         const loadVoices = () => {
             const voices = this.synthesis.getVoices();
-            // Try to find Korean voice
-            this.koreanVoice = voices.find(voice =>
-                voice.lang.startsWith('ko') ||
-                voice.lang.startsWith('ko-KR')
+
+            // Filter Korean voices
+            const koreanVoices = voices.filter(voice =>
+                voice.lang.startsWith('ko') || voice.lang.startsWith('ko-KR')
             );
 
-            // Fallback to any available voice
+            console.log('Korean voices found:', koreanVoices.length);
+            koreanVoices.forEach((v, i) => {
+                console.log(`  ${i}: ${v.name} (${v.lang}) - Local: ${v.localService}`);
+            });
+
+            // Prioritize LOCAL voices (offline) over online voices
+            // Online/Natural voices often fail with synthesis-failed errors
+            this.koreanVoice = koreanVoices.find(voice => voice.localService === true);
+
+            // If no local Korean voice, try any Korean voice
+            if (!this.koreanVoice) {
+                this.koreanVoice = koreanVoices[0];
+            }
+
+            // Final fallback to any available voice
             if (!this.koreanVoice && voices.length > 0) {
                 this.koreanVoice = voices[0];
             }
 
-            console.log('Available voices:', voices.length);
-            console.log('Selected Korean voice:', this.koreanVoice?.name);
+            console.log('Selected Korean voice:', this.koreanVoice?.name, '(Local:', this.koreanVoice?.localService + ')');
         };
 
         // Load voices (some browsers need this event)
@@ -1151,15 +1165,26 @@ class ASI1 {
                 lang: utterance.lang
             });
 
-            // Use selected voice from settings
+            // Use selected voice from settings, but prefer local voices
             const voices = this.synthesis.getVoices();
+            let selectedVoice = null;
+
             if (this.settings.selectedVoiceIndex !== undefined && voices[this.settings.selectedVoiceIndex]) {
-                utterance.voice = voices[this.settings.selectedVoiceIndex];
-                console.log('Using selected voice:', utterance.voice.name);
+                selectedVoice = voices[this.settings.selectedVoiceIndex];
+
+                // If selected voice is online (not local), prefer the local Korean voice instead
+                if (!selectedVoice.localService && this.koreanVoice && this.koreanVoice.localService) {
+                    console.warn('Selected voice is online, using local Korean voice instead for reliability');
+                    utterance.voice = this.koreanVoice;
+                    console.log('Using local Korean voice:', this.koreanVoice.name);
+                } else {
+                    utterance.voice = selectedVoice;
+                    console.log('Using selected voice:', selectedVoice.name, '(Local:', selectedVoice.localService + ')');
+                }
             } else if (this.koreanVoice) {
                 // Fallback to Korean voice
                 utterance.voice = this.koreanVoice;
-                console.log('Using Korean voice:', this.koreanVoice.name);
+                console.log('Using Korean voice:', this.koreanVoice.name, '(Local:', this.koreanVoice.localService + ')');
             } else {
                 console.warn('No Korean voice found, using default');
             }
