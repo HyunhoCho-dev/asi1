@@ -9,8 +9,10 @@ class ASI1 {
         this.settings = { ...CONFIG.SETTINGS };
         this.conversationHistory = [];
         this.isRecording = false;
+        this.voiceMode = false;  // Continuous voice conversation mode
         this.recognition = null;
         this.synthesis = window.speechSynthesis;
+        this.koreanVoice = null;  // Korean TTS voice
 
         this.init();
     }
@@ -115,37 +117,126 @@ class ASI1 {
     }
 
     /**
-     * Setup voice recognition
+     * Setup voice recognition with continuous mode
      */
     setupVoiceRecognition() {
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             this.recognition = new SpeechRecognition();
-            this.recognition.continuous = false;
-            this.recognition.interimResults = false;
-            this.recognition.lang = CONFIG.VOICE.language;
+            this.recognition.continuous = CONFIG.VOICE.continuousRecognition;
+            this.recognition.interimResults = true;  // Show interim results
+            this.recognition.lang = CONFIG.VOICE.recognitionLanguage;
+            this.recognition.maxAlternatives = 1;
+
+            let finalTranscript = '';
+            let silenceTimer = null;
 
             this.recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                this.messageInput.value = transcript;
+                let interimTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript = transcript;
+                    }
+                }
+
+                // Show current transcript
+                this.messageInput.value = finalTranscript + interimTranscript;
                 this.handleInputChange({ target: this.messageInput });
+
+                // Auto-send after silence
+                if (CONFIG.VOICE.autoSend && finalTranscript) {
+                    clearTimeout(silenceTimer);
+                    silenceTimer = setTimeout(() => {
+                        if (this.messageInput.value.trim()) {
+                            this.sendMessage();
+                            finalTranscript = '';
+                        }
+                    }, 1500);  // Send after 1.5 seconds of silence
+                }
             };
 
             this.recognition.onend = () => {
-                this.isRecording = false;
-                this.voiceBtn.classList.remove('recording');
+                // Restart if voice mode is active
+                if (this.voiceMode && this.settings.voiceEnabled) {
+                    setTimeout(() => {
+                        if (this.voiceMode) {
+                            try {
+                                this.recognition.start();
+                            } catch (e) {
+                                console.log('Recognition restart delayed');
+                            }
+                        }
+                    }, 300);
+                } else {
+                    this.isRecording = false;
+                    this.voiceBtn.classList.remove('recording');
+                }
             };
 
             this.recognition.onerror = (event) => {
                 console.error('Speech recognition error:', event.error);
+
+                // Ignore aborted errors (happens when stopping manually)
+                if (event.error === 'aborted') return;
+
+                if (event.error === 'no-speech') {
+                    // Just restart if no speech detected
+                    if (this.voiceMode) {
+                        setTimeout(() => {
+                            if (this.voiceMode) {
+                                try {
+                                    this.recognition.start();
+                                } catch (e) {}
+                            }
+                        }, 300);
+                    }
+                    return;
+                }
+
                 this.isRecording = false;
+                this.voiceMode = false;
                 this.voiceBtn.classList.remove('recording');
-                this.showNotification('Voice recognition error. Please try again.', 'error');
+                this.showNotification(CONFIG.MESSAGES.ERROR_VOICE, 'error');
             };
+
+            // Load Korean voice for TTS
+            this.loadKoreanVoice();
         } else {
             console.warn('Speech recognition not supported');
             this.voiceBtn.style.display = 'none';
         }
+    }
+
+    /**
+     * Load Korean voice for speech synthesis
+     */
+    loadKoreanVoice() {
+        const loadVoices = () => {
+            const voices = this.synthesis.getVoices();
+            // Try to find Korean voice
+            this.koreanVoice = voices.find(voice =>
+                voice.lang.startsWith('ko') ||
+                voice.lang.startsWith('ko-KR')
+            );
+
+            // Fallback to any available voice
+            if (!this.koreanVoice && voices.length > 0) {
+                this.koreanVoice = voices[0];
+            }
+
+            console.log('Available voices:', voices.length);
+            console.log('Selected Korean voice:', this.koreanVoice?.name);
+        };
+
+        // Load voices (some browsers need this event)
+        if (this.synthesis.onvoiceschanged !== undefined) {
+            this.synthesis.onvoiceschanged = loadVoices;
+        }
+        loadVoices();
     }
 
     /**
@@ -188,11 +279,11 @@ class ASI1 {
     }
 
     /**
-     * Toggle voice recording
+     * Toggle continuous voice conversation mode
      */
     toggleVoiceRecording() {
         if (!this.settings.voiceEnabled) {
-            this.showNotification('Voice input is disabled. Enable it in settings.', 'warning');
+            this.showNotification(CONFIG.MESSAGES.ERROR_VOICE, 'warning');
             return;
         }
 
@@ -201,14 +292,43 @@ class ASI1 {
             return;
         }
 
-        if (this.isRecording) {
-            this.recognition.stop();
-            this.isRecording = false;
-            this.voiceBtn.classList.remove('recording');
+        // Toggle voice mode
+        this.voiceMode = !this.voiceMode;
+
+        if (this.voiceMode) {
+            // Start continuous voice mode
+            try {
+                this.recognition.start();
+                this.isRecording = true;
+                this.voiceBtn.classList.add('recording');
+                this.voiceBtn.title = CONFIG.MESSAGES.VOICE_ACTIVE;
+
+                // Update status indicator
+                const statusText = document.querySelector('.status-indicator span');
+                if (statusText) {
+                    statusText.textContent = CONFIG.MESSAGES.LISTENING;
+                }
+            } catch (e) {
+                console.error('Failed to start voice recognition:', e);
+                this.voiceMode = false;
+                this.showNotification(CONFIG.MESSAGES.ERROR_VOICE, 'error');
+            }
         } else {
-            this.recognition.start();
-            this.isRecording = true;
-            this.voiceBtn.classList.add('recording');
+            // Stop continuous voice mode
+            try {
+                this.recognition.stop();
+                this.isRecording = false;
+                this.voiceBtn.classList.remove('recording');
+                this.voiceBtn.title = CONFIG.MESSAGES.VOICE_INACTIVE;
+
+                // Update status indicator
+                const statusText = document.querySelector('.status-indicator span');
+                if (statusText) {
+                    statusText.textContent = 'ASI1 is ready';
+                }
+            } catch (e) {
+                console.error('Failed to stop voice recognition:', e);
+            }
         }
     }
 
@@ -396,7 +516,7 @@ class ASI1 {
     }
 
     /**
-     * Speak text using Web Speech API
+     * Speak text using Web Speech API with Korean voice
      */
     speak(text) {
         if (!this.synthesis || !this.settings.autoSpeak) {
@@ -410,7 +530,27 @@ class ASI1 {
         utterance.rate = CONFIG.VOICE.rate;
         utterance.pitch = CONFIG.VOICE.pitch;
         utterance.volume = CONFIG.VOICE.volume;
-        utterance.lang = CONFIG.VOICE.language;
+        utterance.lang = CONFIG.VOICE.synthesisLanguage;
+
+        // Use Korean voice if available
+        if (this.koreanVoice) {
+            utterance.voice = this.koreanVoice;
+        }
+
+        // Update status when speaking
+        const statusText = document.querySelector('.status-indicator span');
+
+        utterance.onstart = () => {
+            if (statusText && !this.voiceMode) {
+                statusText.textContent = CONFIG.MESSAGES.SPEAKING;
+            }
+        };
+
+        utterance.onend = () => {
+            if (statusText && !this.voiceMode) {
+                statusText.textContent = 'ASI1 is ready';
+            }
+        };
 
         this.synthesis.speak(utterance);
     }
