@@ -40,10 +40,10 @@
                         <div class="pulse-ring delay-2"></div>
                         <div class="avatar-core"></div>
                     </div>
-                    <h2 class="welcome-title">안녕, 나는 ASI1이야</h2>
-                    <p class="welcome-subtitle">진짜 대화를 나누고 싶은 당신의 AI 친구</p>
+                    <h2 class="welcome-title">Hi, I'm ASI1</h2>
+                    <p class="welcome-subtitle">Your AI companion for real conversations</p>
                     <button class="start-btn" id="startBtn">
-                        <span>대화 시작하기</span>
+                        <span>Start Conversation</span>
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                             <path d="M8 3 L13 8 L8 13 M3 8 L13 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
@@ -56,7 +56,7 @@
                 <div class="chat-header">
                     <div class="status-indicator">
                         <div class="status-dot"></div>
-                        <span>ASI1이 준비되었어</span>
+                        <span>ASI1 is ready</span>
                     </div>
                     <div class="tools-used" id="toolsUsed"></div>
                 </div>
@@ -67,14 +67,14 @@
                             <div class="avatar-small"></div>
                         </div>
                         <div class="message-content">
-                            <p>안녕! 오늘 어떤 일이 있었어?</p>
+                            <p>Hey! How was your day?</p>
                         </div>
                     </div>
                 </div>
 
                 <div class="chat-input-container">
                     <div class="input-wrapper">
-                        <button class="voice-btn" id="voiceBtn" title="마이크를 클릭해서 음성 대화 시작">
+                        <button class="voice-btn" id="voiceBtn" title="Click mic to start voice conversation">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M12 1 L12 15 M8 5 L8 11 C8 13.2 9.8 15 12 15 C14.2 15 16 13.2 16 11 L16 5"/>
                                 <path d="M19 11 C19 15.4 15.4 19 11 19 M5 11 C5 15.4 8.6 19 13 19"/>
@@ -85,7 +85,7 @@
                         <textarea
                             id="messageInput"
                             class="message-input"
-                            placeholder="메시지를 입력하거나 음성으로 말하세요..."
+                            placeholder="Type a message or speak..."
                             rows="1"
                         ></textarea>
                         <button class="send-btn" id="sendBtn" disabled>
@@ -95,7 +95,7 @@
                         </button>
                     </div>
                     <div class="input-footer">
-                        <span class="tip">팁: 마이크 버튼을 누르면 음성 대화 모드가 켜져 (자동으로 메시지 전송됨)</span>
+                        <span class="tip">Tip: Press mic button for voice mode (auto-sends messages)</span>
                         <div class="character-count">
                             <span id="charCount">0</span> / 2000
                         </div>
@@ -109,7 +109,7 @@
     <div class="modal hidden" id="settingsModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>설정</h3>
+                <h3>Settings</h3>
                 <button class="close-btn" id="closeModalBtn">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M18 6 L6 18 M6 6 L18 18"/>
@@ -118,74 +118,74 @@
             </div>
             <div class="modal-body">
                 <div class="setting-group">
-                    <label for="apiKey">Groq API 키</label>
-                    <input type="password" id="apiKey" placeholder="Groq API 키를 입력하세요">
-                    <small><a href="https://console.groq.com" target="_blank">console.groq.com</a>에서 API 키를 발급받으세요 (무료)</small>
+                    <label for="apiKey">Groq API Key</label>
+                    <input type="password" id="apiKey" placeholder="Enter your Groq API key">
+                    <small>Get your free API key at <a href="https://console.groq.com" target="_blank">console.groq.com</a></small>
                 </div>
                 <div class="setting-group">
-                    <label for="modelSelect">모델</label>
+                    <label for="modelSelect">Model</label>
                     <select id="modelSelect">
-                        <option value="openai/gpt-oss-120b">GPT-OSS 120B (추천)</option>
-                        <option value="openai/gpt-oss-20b">GPT-OSS 20B (더 빠름)</option>
+                        <option value="openai/gpt-oss-120b">GPT-OSS 120B (Recommended)</option>
+                        <option value="openai/gpt-oss-20b">GPT-OSS 20B (Faster)</option>
                     </select>
                 </div>
                 <div class="setting-group">
-                    <label>내장 도구</label>
+                    <label>Built-in Tools</label>
                     <div class="checkbox-group">
                         <label class="checkbox-label">
                             <input type="checkbox" id="browserSearch" checked>
-                            <span>웹 검색</span>
+                            <span>Web Search</span>
                         </label>
                         <label class="checkbox-label">
                             <input type="checkbox" id="codeInterpreter" checked>
-                            <span>코드 실행</span>
+                            <span>Code Interpreter</span>
                         </label>
                     </div>
                 </div>
                 <div class="setting-group">
-                    <label>음성 설정</label>
+                    <label>Voice Settings</label>
                     <div class="checkbox-group">
                         <label class="checkbox-label">
                             <input type="checkbox" id="voiceEnabled" checked>
-                            <span>음성 입력 활성화</span>
+                            <span>Enable Voice Input</span>
                         </label>
                         <label class="checkbox-label">
                             <input type="checkbox" id="autoSpeak" checked>
-                            <span>답변 자동 읽기</span>
+                            <span>Auto-read Responses</span>
                         </label>
                     </div>
                 </div>
                 <div class="setting-group">
-                    <label for="voiceSelect">음성 선택</label>
+                    <label for="voiceSelect">Voice Selection</label>
                     <select id="voiceSelect">
                         <option>Loading voices...</option>
                     </select>
                 </div>
                 <div class="setting-group">
-                    <label for="voiceRate">속도 <span id="voiceRateValue">1.0</span></label>
+                    <label for="voiceRate">Rate <span id="voiceRateValue">1.0</span></label>
                     <input type="range" id="voiceRate" min="0.5" max="2.0" step="0.1" value="1.0" class="slider">
                 </div>
                 <div class="setting-group">
-                    <label for="voicePitch">음높이 <span id="voicePitchValue">1.0</span></label>
+                    <label for="voicePitch">Pitch <span id="voicePitchValue">1.0</span></label>
                     <input type="range" id="voicePitch" min="0.5" max="2.0" step="0.1" value="1.0" class="slider">
                 </div>
                 <div class="setting-group">
-                    <label for="voiceVolume">볼륨 <span id="voiceVolumeValue">1.0</span></label>
+                    <label for="voiceVolume">Volume <span id="voiceVolumeValue">1.0</span></label>
                     <input type="range" id="voiceVolume" min="0.0" max="1.0" step="0.1" value="1.0" class="slider">
                 </div>
                 <div class="setting-group" style="border-top: 1px solid var(--color-border); margin-top: var(--spacing-lg); padding-top: var(--spacing-lg);">
-                    <label>데이터 관리</label>
+                    <label>Data Management</label>
                     <button class="btn-danger" id="resetMemoryBtn" type="button">
-                        모든 기억 초기화
+                        Reset All Memories
                     </button>
                     <small style="color: var(--color-text-tertiary); margin-top: var(--spacing-xs);">
-                        장기 기억, 대화 히스토리, AI 성격을 모두 초기화합니다. 이 작업은 되돌릴 수 없습니다.
+                        Resets all long-term memories, conversation history, and AI personality. This action cannot be undone.
                     </small>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn-secondary" id="cancelBtn">취소</button>
-                <button class="btn-primary" id="saveBtn">저장</button>
+                <button class="btn-secondary" id="cancelBtn">Cancel</button>
+                <button class="btn-primary" id="saveBtn">Save</button>
             </div>
         </div>
     </div>
@@ -194,7 +194,7 @@
     <div class="loading-overlay hidden" id="loadingOverlay">
         <div class="loading-spinner">
             <div class="spinner"></div>
-            <p>생각하는 중...</p>
+            <p>Thinking...</p>
         </div>
     </div>
 
