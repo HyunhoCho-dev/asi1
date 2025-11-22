@@ -1115,46 +1115,76 @@ class ASI1 {
      * Speak text using Web Speech API with Korean voice
      */
     speak(text) {
-        if (!this.synthesis || !this.settings.autoSpeak) {
+        if (!this.synthesis) {
+            console.error('Speech synthesis not available');
             return;
         }
+
+        if (!this.settings.autoSpeak) {
+            console.log('Auto-speak is disabled');
+            return;
+        }
+
+        console.log('Speaking:', text);
+        console.log('Auto-speak enabled:', this.settings.autoSpeak);
 
         // Cancel any ongoing speech
         this.synthesis.cancel();
 
-        const utterance = new SpeechSynthesisUtterance(text);
+        // Small delay to ensure cancel completes
+        setTimeout(() => {
+            const utterance = new SpeechSynthesisUtterance(text);
 
-        // Use settings for voice control (with fallbacks to CONFIG defaults)
-        utterance.rate = this.settings.voiceRate || CONFIG.VOICE.rate;
-        utterance.pitch = this.settings.voicePitch || CONFIG.VOICE.pitch;
-        utterance.volume = this.settings.voiceVolume || CONFIG.VOICE.volume;
-        utterance.lang = CONFIG.VOICE.synthesisLanguage;
+            // Use settings for voice control (with fallbacks to CONFIG defaults)
+            utterance.rate = this.settings.voiceRate || CONFIG.VOICE.rate;
+            utterance.pitch = this.settings.voicePitch || CONFIG.VOICE.pitch;
+            utterance.volume = this.settings.voiceVolume || CONFIG.VOICE.volume;
+            utterance.lang = CONFIG.VOICE.synthesisLanguage;
 
-        // Use selected voice from settings
-        const voices = this.synthesis.getVoices();
-        if (this.settings.selectedVoiceIndex !== undefined && voices[this.settings.selectedVoiceIndex]) {
-            utterance.voice = voices[this.settings.selectedVoiceIndex];
-        } else if (this.koreanVoice) {
-            // Fallback to Korean voice
-            utterance.voice = this.koreanVoice;
-        }
+            console.log('Voice settings:', {
+                rate: utterance.rate,
+                pitch: utterance.pitch,
+                volume: utterance.volume,
+                lang: utterance.lang
+            });
 
-        // Update status when speaking
-        const statusText = document.querySelector('.status-indicator span');
-
-        utterance.onstart = () => {
-            if (statusText && !this.voiceMode) {
-                statusText.textContent = CONFIG.MESSAGES.SPEAKING;
+            // Use selected voice from settings
+            const voices = this.synthesis.getVoices();
+            if (this.settings.selectedVoiceIndex !== undefined && voices[this.settings.selectedVoiceIndex]) {
+                utterance.voice = voices[this.settings.selectedVoiceIndex];
+                console.log('Using selected voice:', utterance.voice.name);
+            } else if (this.koreanVoice) {
+                // Fallback to Korean voice
+                utterance.voice = this.koreanVoice;
+                console.log('Using Korean voice:', this.koreanVoice.name);
+            } else {
+                console.warn('No Korean voice found, using default');
             }
-        };
 
-        utterance.onend = () => {
-            if (statusText && !this.voiceMode) {
-                statusText.textContent = 'ASI1이 준비되었어';
-            }
-        };
+            // Update status when speaking
+            const statusText = document.querySelector('.status-indicator span');
 
-        this.synthesis.speak(utterance);
+            utterance.onstart = () => {
+                console.log('Speech started');
+                if (statusText && !this.voiceMode) {
+                    statusText.textContent = CONFIG.MESSAGES.SPEAKING;
+                }
+            };
+
+            utterance.onend = () => {
+                console.log('Speech ended');
+                if (statusText && !this.voiceMode) {
+                    statusText.textContent = 'ASI1 is ready';
+                }
+            };
+
+            utterance.onerror = (event) => {
+                console.error('Speech error:', event);
+            };
+
+            console.log('Calling synthesis.speak()');
+            this.synthesis.speak(utterance);
+        }, 100);
     }
 
     /**
