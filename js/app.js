@@ -93,6 +93,30 @@ class ASI1 {
                 console.error('Failed to load memories:', e);
             }
         }
+
+        // Load conversation history
+        const savedHistory = localStorage.getItem(CONFIG.STORAGE.CONVERSATION_HISTORY);
+        if (savedHistory) {
+            try {
+                this.conversationHistory = JSON.parse(savedHistory);
+                console.log(`Loaded ${this.conversationHistory.length} conversation messages`);
+            } catch (e) {
+                console.error('Failed to load conversation history:', e);
+            }
+        }
+    }
+
+    /**
+     * Save conversation history to localStorage
+     */
+    saveConversationHistory() {
+        try {
+            // Keep only recent 20 messages to avoid storage bloat
+            const recentHistory = this.conversationHistory.slice(-20);
+            localStorage.setItem(CONFIG.STORAGE.CONVERSATION_HISTORY, JSON.stringify(recentHistory));
+        } catch (e) {
+            console.error('Failed to save conversation history:', e);
+        }
     }
 
     /**
@@ -250,6 +274,45 @@ class ASI1 {
     }
 
     /**
+     * Reset all memories, conversation history, and personality
+     */
+    resetAllMemories() {
+        // Confirm with user
+        const confirmed = confirm('정말로 모든 기억을 초기화할까?\n\n이 작업은 되돌릴 수 없어:\n- 장기 기억 (저장된 대화들)\n- 대화 히스토리\n- AI 성격과 감정 상태\n- 성장 데이터');
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            // Clear memories
+            this.longTermMemory = [];
+            localStorage.removeItem(CONFIG.STORAGE.LONG_TERM_MEMORY);
+
+            // Clear conversation history
+            this.conversationHistory = [];
+            localStorage.removeItem(CONFIG.STORAGE.CONVERSATION_HISTORY);
+
+            // Reset personality to default
+            this.personality = { ...CONFIG.PERSONALITY };
+            localStorage.removeItem(CONFIG.STORAGE.PERSONALITY);
+            localStorage.removeItem(CONFIG.STORAGE.GROWTH_DATA);
+
+            // Clear chat messages from UI
+            this.chatMessages.innerHTML = '';
+
+            // Close settings and show notification
+            this.closeSettings();
+            this.showNotification('모든 기억이 초기화됐어. 새로운 시작이야!', 'info');
+
+            console.log('All memories and personality data reset successfully');
+        } catch (e) {
+            console.error('Failed to reset memories:', e);
+            this.showNotification('초기화 중 오류가 발생했어. 콘솔을 확인해줘.', 'error');
+        }
+    }
+
+    /**
      * Initialize DOM elements
      */
     initializeElements() {
@@ -278,6 +341,7 @@ class ASI1 {
         this.codeInterpreterCheckbox = document.getElementById('codeInterpreter');
         this.voiceEnabledCheckbox = document.getElementById('voiceEnabled');
         this.autoSpeakCheckbox = document.getElementById('autoSpeak');
+        this.resetMemoryBtn = document.getElementById('resetMemoryBtn');
 
         // Other elements
         this.startBtn = document.getElementById('startBtn');
@@ -312,6 +376,11 @@ class ASI1 {
         this.closeModalBtn.addEventListener('click', () => this.closeSettings());
         this.cancelBtn.addEventListener('click', () => this.closeSettings());
         this.saveBtn.addEventListener('click', () => this.saveSettings());
+
+        // Reset memory button
+        if (this.resetMemoryBtn) {
+            this.resetMemoryBtn.addEventListener('click', () => this.resetAllMemories());
+        }
 
         // Close modal on outside click
         this.settingsModal.addEventListener('click', (e) => {
@@ -465,7 +534,39 @@ class ASI1 {
 
         this.welcomeScreen.classList.add('hidden');
         this.chatInterface.classList.remove('hidden');
+
+        // Restore previous conversation messages to UI
+        if (this.conversationHistory.length > 0) {
+            this.conversationHistory.forEach(msg => {
+                this.addMessage(msg.role, msg.content);
+            });
+
+            // Show a friendly reminder about continuing the conversation
+            const greeting = this.getContextualGreeting();
+            setTimeout(() => {
+                this.addMessage('assistant', greeting);
+            }, 500);
+        }
+
         this.messageInput.focus();
+    }
+
+    /**
+     * Get a contextual greeting based on personality and memories
+     */
+    getContextualGreeting() {
+        const memoryCount = this.longTermMemory.length;
+        const conversationCount = this.personality.growth.conversationCount || 0;
+
+        const greetings = [
+            `다시 만나서 반가워! 우리 ${conversationCount}번의 대화를 나눴네. 무슨 얘기 할까?`,
+            `어, 돌아왔네! 보고 싶었어. 오늘은 어땠어?`,
+            `반가워! ${memoryCount}개의 기억들이 생각나네. 계속 얘기하자!`,
+            `또 만났네! 오늘도 좋은 대화 나누고 싶어.`,
+            `안녕! 네가 얘기해준 것들 기억하고 있어. 무슨 일 있었어?`
+        ];
+
+        return greetings[Math.floor(Math.random() * greetings.length)];
     }
 
     /**
@@ -585,6 +686,9 @@ class ASI1 {
                 role: 'assistant',
                 content: response.content
             });
+
+            // Save conversation history to localStorage
+            this.saveConversationHistory();
 
             // Update growth metrics
             this.updateGrowth('conversation');
