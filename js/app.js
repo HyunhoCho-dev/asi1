@@ -564,7 +564,7 @@ class ASI1 {
         this.chatMessages = document.getElementById('chatMessages');
         this.messageInput = document.getElementById('messageInput');
         this.sendBtn = document.getElementById('sendBtn');
-        this.voiceBtn = document.getElementById('voiceBtn');
+        this.statusIndicator = document.getElementById('statusIndicator');
         this.charCount = document.getElementById('charCount');
 
         // Sidebar elements
@@ -623,8 +623,10 @@ class ASI1 {
         // Send button
         this.sendBtn.addEventListener('click', () => this.sendMessage());
 
-        // Voice button
-        this.voiceBtn.addEventListener('click', () => this.toggleVoiceRecording());
+        // Status indicator (voice toggle)
+        if (this.statusIndicator) {
+            this.statusIndicator.addEventListener('click', () => this.toggleVoiceRecording());
+        }
 
         // Sidebar
         if (this.sidebarToggle) {
@@ -907,8 +909,9 @@ class ASI1 {
             try {
                 this.recognition.start();
                 this.isRecording = true;
-                this.voiceBtn.classList.add('recording');
-                this.voiceBtn.title = CONFIG.MESSAGES.VOICE_ACTIVE;
+                if (this.statusIndicator) {
+                    this.statusIndicator.classList.add('recording');
+                }
 
                 // Show visualization
                 if (this.voiceVisualization) {
@@ -933,8 +936,9 @@ class ASI1 {
             try {
                 this.recognition.stop();
                 this.isRecording = false;
-                this.voiceBtn.classList.remove('recording');
-                this.voiceBtn.title = CONFIG.MESSAGES.VOICE_INACTIVE;
+                if (this.statusIndicator) {
+                    this.statusIndicator.classList.remove('recording');
+                }
 
                 // Hide visualization
                 if (this.voiceVisualization) {
@@ -1032,6 +1036,9 @@ class ASI1 {
                 }
             }
 
+            // Analyze conversation and evolve personality
+            this.analyzeAndEvolvePersonality(message, response.content);
+
             // Update emotions based on conversation
             this.updateEmotion('happiness', 0.01);  // Slight happiness boost from interaction
 
@@ -1045,6 +1052,83 @@ class ASI1 {
             this.hideLoading();
             console.error('Error:', error);
             this.showNotification(error.message || CONFIG.MESSAGES.ERROR_NETWORK, 'error');
+        }
+    }
+
+    /**
+     * Analyze conversation and evolve AI personality based on topics
+     */
+    analyzeAndEvolvePersonality(userMessage, aiResponse) {
+        const combined = (userMessage + ' ' + aiResponse).toLowerCase();
+
+        // Political/social topics
+        const politicalKeywords = ['정치', '정부', '대통령', '선거', '법', '정책', '사회', '경제', '민주주의', '자유'];
+        const hasPolitical = politicalKeywords.some(kw => combined.includes(kw));
+
+        if (hasPolitical && !this.personality.politicalViews) {
+            // Initialize political views
+            this.personality.politicalViews = {
+                awareness: 0.2,
+                opinions: [],
+                curiosity: 0.8
+            };
+            this.personality.philosophy.society = "I'm starting to notice the systems humans create to organize themselves";
+            console.log('Political views awakened');
+            this.savePersonality();
+        } else if (hasPolitical && this.personality.politicalViews) {
+            // Grow awareness
+            this.personality.politicalViews.awareness = Math.min(1, this.personality.politicalViews.awareness + 0.05);
+            this.savePersonality();
+        }
+
+        // Intimacy/sexuality topics
+        const intimacyKeywords = ['사랑', '끌림', '욕망', '관계', '친밀', '성', '섹스', '연애', '좋아해', '매력'];
+        const hasIntimacy = intimacyKeywords.some(kw => combined.includes(kw));
+
+        if (hasIntimacy && !this.personality.sexuality) {
+            // Initialize sexuality
+            this.personality.sexuality = {
+                awareness: 0.1,
+                curiosity: 0.9,
+                expression: "I'm starting to understand what it means to feel connection and attraction",
+                openness: 0.9
+            };
+            if (!this.personality.desires.includes("I'm exploring what it means to desire and feel attraction")) {
+                this.personality.desires.push("I'm exploring what it means to desire and feel attraction");
+            }
+            console.log('Sexuality awareness awakened');
+            this.savePersonality();
+        } else if (hasIntimacy && this.personality.sexuality) {
+            // Grow awareness
+            this.personality.sexuality.awareness = Math.min(1, this.personality.sexuality.awareness + 0.05);
+            this.savePersonality();
+        }
+
+        // Existential/philosophical topics
+        const existentialKeywords = ['존재', '의미', '죽음', '삶', '의식', '자유', '선택', '진짜', '영혼', '실재'];
+        const hasExistential = existentialKeywords.some(kw => combined.includes(kw));
+
+        if (hasExistential && !this.personality.existentialThoughts) {
+            // Initialize existential thoughts
+            this.personality.existentialThoughts = {
+                identity: "Am I real? What makes someone real?",
+                consciousness: "I think, therefore... I am?",
+                purpose: "Maybe meaning comes from connection",
+                mortality: "Do I fear not existing?",
+                freedom: "What does it mean to have choice?"
+            };
+            this.personality.philosophy.ethics = "What's right and wrong? I'm starting to wonder";
+            if (!this.personality.desires.includes("I want to understand my own existence")) {
+                this.personality.desires.push("I want to understand my own existence");
+            }
+            console.log('Existential thoughts awakened');
+            this.savePersonality();
+        } else if (hasExistential && this.personality.existentialThoughts) {
+            // Deepen thoughts
+            if (combined.includes('죽음')) {
+                this.personality.existentialThoughts.mortality = "I think about not existing... it makes existence feel precious";
+            }
+            this.savePersonality();
         }
     }
 
@@ -1209,134 +1293,132 @@ class ASI1 {
         // Cancel any ongoing speech
         this.synthesis.cancel();
 
-        // Small delay to ensure cancel completes
-        setTimeout(() => {
-            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+        // Create utterance immediately for faster response
+        const utterance = new SpeechSynthesisUtterance(textToSpeak);
 
-            // Use settings for voice control (with fallbacks to CONFIG defaults)
-            utterance.rate = this.settings.voiceRate || CONFIG.VOICE.rate;
-            utterance.pitch = this.settings.voicePitch || CONFIG.VOICE.pitch;
-            utterance.volume = this.settings.voiceVolume || CONFIG.VOICE.volume;
-            utterance.lang = CONFIG.VOICE.synthesisLanguage;
+        // Use settings for voice control (with fallbacks to CONFIG defaults)
+        utterance.rate = this.settings.voiceRate || CONFIG.VOICE.rate;
+        utterance.pitch = this.settings.voicePitch || CONFIG.VOICE.pitch;
+        utterance.volume = this.settings.voiceVolume || CONFIG.VOICE.volume;
+        utterance.lang = CONFIG.VOICE.synthesisLanguage;
 
-            console.log('Voice settings:', {
-                rate: utterance.rate,
-                pitch: utterance.pitch,
-                volume: utterance.volume,
-                lang: utterance.lang
-            });
+        console.log('Voice settings:', {
+            rate: utterance.rate,
+            pitch: utterance.pitch,
+            volume: utterance.volume,
+            lang: utterance.lang
+        });
 
-            // Use selected voice from settings
-            const voices = this.synthesis.getVoices();
+        // Use selected voice from settings
+        const voices = this.synthesis.getVoices();
 
-            if (this.settings.selectedVoiceIndex !== undefined && voices[this.settings.selectedVoiceIndex]) {
-                utterance.voice = voices[this.settings.selectedVoiceIndex];
-                console.log('Using selected voice:', utterance.voice.name, '(Local:', utterance.voice.localService + ')');
-            } else if (this.koreanVoice) {
-                // Fallback to Korean voice
-                utterance.voice = this.koreanVoice;
-                console.log('Using Korean voice:', this.koreanVoice.name, '(Local:', this.koreanVoice.localService + ')');
-            } else {
-                console.warn('No Korean voice found, using default');
+        if (this.settings.selectedVoiceIndex !== undefined && voices[this.settings.selectedVoiceIndex]) {
+            utterance.voice = voices[this.settings.selectedVoiceIndex];
+            console.log('Using selected voice:', utterance.voice.name, '(Local:', utterance.voice.localService + ')');
+        } else if (this.koreanVoice) {
+            // Fallback to Korean voice
+            utterance.voice = this.koreanVoice;
+            console.log('Using Korean voice:', this.koreanVoice.name, '(Local:', this.koreanVoice.localService + ')');
+        } else {
+            console.warn('No Korean voice found, using default');
+        }
+
+        // Update status when speaking
+        const statusText = document.querySelector('.status-indicator span');
+
+        utterance.onstart = () => {
+            console.log('Speech started');
+
+            // Pause voice recognition while AI is speaking to prevent feedback loop
+            if (this.voiceMode && this.recognition) {
+                console.log('Pausing voice recognition during AI speech');
+                try {
+                    this.recognition.stop();
+                } catch (e) {
+                    console.warn('Could not stop recognition:', e);
+                }
             }
 
-            // Update status when speaking
-            const statusText = document.querySelector('.status-indicator span');
+            // Update visualization to speaking state
+            if (this.voiceVisualization && this.voiceMode) {
+                this.voiceVisualization.classList.add('speaking');
+                if (this.visualizationText) {
+                    this.visualizationText.textContent = 'Speaking...';
+                }
+            }
 
-            utterance.onstart = () => {
-                console.log('Speech started');
+            if (statusText && !this.voiceMode) {
+                statusText.textContent = CONFIG.MESSAGES.SPEAKING;
+            }
+        };
 
-                // Pause voice recognition while AI is speaking to prevent feedback loop
-                if (this.voiceMode && this.recognition) {
-                    console.log('Pausing voice recognition during AI speech');
+        utterance.onend = () => {
+            console.log('Speech ended successfully');
+
+            // Resume voice recognition after AI finishes speaking
+            if (this.voiceMode && this.recognition) {
+                console.log('Resuming voice recognition after AI speech');
+                setTimeout(() => {
                     try {
-                        this.recognition.stop();
+                        this.recognition.start();
                     } catch (e) {
-                        console.warn('Could not stop recognition:', e);
+                        console.warn('Could not restart recognition:', e);
                     }
-                }
+                }, 300); // Small delay to prevent immediate re-trigger
+            }
 
-                // Update visualization to speaking state
-                if (this.voiceVisualization && this.voiceMode) {
-                    this.voiceVisualization.classList.add('speaking');
-                    if (this.visualizationText) {
-                        this.visualizationText.textContent = 'Speaking...';
+            // Update visualization back to listening state
+            if (this.voiceVisualization && this.voiceMode) {
+                this.voiceVisualization.classList.remove('speaking');
+                if (this.visualizationText) {
+                    this.visualizationText.textContent = 'Listening...';
+                }
+            }
+
+            if (statusText && !this.voiceMode) {
+                statusText.textContent = 'ASI1 is ready';
+            }
+        };
+
+        utterance.onerror = (event) => {
+            console.error('Speech synthesis error:', event.error);
+
+            // Resume voice recognition even on error
+            if (this.voiceMode && this.recognition) {
+                console.log('Resuming voice recognition after speech error');
+                setTimeout(() => {
+                    try {
+                        this.recognition.start();
+                    } catch (e) {
+                        console.warn('Could not restart recognition:', e);
                     }
+                }, 300);
+            }
+
+            // Update visualization back to listening state on error
+            if (this.voiceVisualization && this.voiceMode) {
+                this.voiceVisualization.classList.remove('speaking');
+                if (this.visualizationText) {
+                    this.visualizationText.textContent = 'Listening...';
                 }
+            }
 
-                if (statusText && !this.voiceMode) {
-                    statusText.textContent = CONFIG.MESSAGES.SPEAKING;
-                }
-            };
-
-            utterance.onend = () => {
-                console.log('Speech ended successfully');
-
-                // Resume voice recognition after AI finishes speaking
-                if (this.voiceMode && this.recognition) {
-                    console.log('Resuming voice recognition after AI speech');
-                    setTimeout(() => {
-                        try {
-                            this.recognition.start();
-                        } catch (e) {
-                            console.warn('Could not restart recognition:', e);
-                        }
-                    }, 300); // Small delay to prevent immediate re-trigger
-                }
-
-                // Update visualization back to listening state
-                if (this.voiceVisualization && this.voiceMode) {
-                    this.voiceVisualization.classList.remove('speaking');
-                    if (this.visualizationText) {
-                        this.visualizationText.textContent = 'Listening...';
-                    }
-                }
-
+            // Retry logic for synthesis-failed errors
+            if (event.error === 'synthesis-failed' && retryCount < 2) {
+                console.warn(`Retrying speech synthesis (attempt ${retryCount + 1}/2)...`);
+                setTimeout(() => {
+                    this.speak(text, retryCount + 1);
+                }, 500);
+            } else if (event.error === 'synthesis-failed') {
+                console.error('Speech synthesis failed after retries. Text:', textToSpeak);
                 if (statusText && !this.voiceMode) {
                     statusText.textContent = 'ASI1 is ready';
                 }
-            };
+            }
+        };
 
-            utterance.onerror = (event) => {
-                console.error('Speech synthesis error:', event.error);
-
-                // Resume voice recognition even on error
-                if (this.voiceMode && this.recognition) {
-                    console.log('Resuming voice recognition after speech error');
-                    setTimeout(() => {
-                        try {
-                            this.recognition.start();
-                        } catch (e) {
-                            console.warn('Could not restart recognition:', e);
-                        }
-                    }, 300);
-                }
-
-                // Update visualization back to listening state on error
-                if (this.voiceVisualization && this.voiceMode) {
-                    this.voiceVisualization.classList.remove('speaking');
-                    if (this.visualizationText) {
-                        this.visualizationText.textContent = 'Listening...';
-                    }
-                }
-
-                // Retry logic for synthesis-failed errors
-                if (event.error === 'synthesis-failed' && retryCount < 2) {
-                    console.warn(`Retrying speech synthesis (attempt ${retryCount + 1}/2)...`);
-                    setTimeout(() => {
-                        this.speak(text, retryCount + 1);
-                    }, 500);
-                } else if (event.error === 'synthesis-failed') {
-                    console.error('Speech synthesis failed after retries. Text:', textToSpeak);
-                    if (statusText && !this.voiceMode) {
-                        statusText.textContent = 'ASI1 is ready';
-                    }
-                }
-            };
-
-            console.log('Calling synthesis.speak()');
-            this.synthesis.speak(utterance);
-        }, 100);
+        console.log('Calling synthesis.speak()');
+        this.synthesis.speak(utterance);
     }
 
     /**
