@@ -1184,6 +1184,17 @@ class ASI1 {
 
             utterance.onstart = () => {
                 console.log('Speech started');
+
+                // Pause voice recognition while AI is speaking to prevent feedback loop
+                if (this.voiceMode && this.recognition) {
+                    console.log('Pausing voice recognition during AI speech');
+                    try {
+                        this.recognition.stop();
+                    } catch (e) {
+                        console.warn('Could not stop recognition:', e);
+                    }
+                }
+
                 if (statusText && !this.voiceMode) {
                     statusText.textContent = CONFIG.MESSAGES.SPEAKING;
                 }
@@ -1191,6 +1202,19 @@ class ASI1 {
 
             utterance.onend = () => {
                 console.log('Speech ended successfully');
+
+                // Resume voice recognition after AI finishes speaking
+                if (this.voiceMode && this.recognition) {
+                    console.log('Resuming voice recognition after AI speech');
+                    setTimeout(() => {
+                        try {
+                            this.recognition.start();
+                        } catch (e) {
+                            console.warn('Could not restart recognition:', e);
+                        }
+                    }, 300); // Small delay to prevent immediate re-trigger
+                }
+
                 if (statusText && !this.voiceMode) {
                     statusText.textContent = 'ASI1 is ready';
                 }
@@ -1198,6 +1222,18 @@ class ASI1 {
 
             utterance.onerror = (event) => {
                 console.error('Speech synthesis error:', event.error);
+
+                // Resume voice recognition even on error
+                if (this.voiceMode && this.recognition) {
+                    console.log('Resuming voice recognition after speech error');
+                    setTimeout(() => {
+                        try {
+                            this.recognition.start();
+                        } catch (e) {
+                            console.warn('Could not restart recognition:', e);
+                        }
+                    }, 300);
+                }
 
                 // Retry logic for synthesis-failed errors
                 if (event.error === 'synthesis-failed' && retryCount < 2) {
