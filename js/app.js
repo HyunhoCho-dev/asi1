@@ -33,6 +33,9 @@ class ASI1 {
         this.attachEventListeners();
         this.setupVoiceRecognition();
         this.checkAPIKey();
+
+        // Initialize emotion visualization
+        this.updateEmotionVisualization();
     }
 
     /**
@@ -263,6 +266,9 @@ class ASI1 {
     updateEmotion(emotionType, change) {
         CONFIG.PERSONALITY.updateEmotion(this.personality, emotionType, change);
         this.savePersonality();
+
+        // Update visual representation
+        this.updateEmotionVisualization();
     }
 
     /**
@@ -561,6 +567,13 @@ class ASI1 {
         this.voiceBtn = document.getElementById('voiceBtn');
         this.charCount = document.getElementById('charCount');
 
+        // Sidebar elements
+        this.chatSidebar = document.getElementById('chatSidebar');
+        this.sidebarToggle = document.getElementById('sidebarToggle');
+        this.sidebarClose = document.getElementById('sidebarClose');
+        this.sidebarOverlay = document.getElementById('sidebarOverlay');
+        this.sidebarContent = document.getElementById('sidebarContent');
+
         // Modal elements
         this.settingsModal = document.getElementById('settingsModal');
         this.settingsBtn = document.getElementById('settingsBtn');
@@ -604,6 +617,17 @@ class ASI1 {
 
         // Voice button
         this.voiceBtn.addEventListener('click', () => this.toggleVoiceRecording());
+
+        // Sidebar
+        if (this.sidebarToggle) {
+            this.sidebarToggle.addEventListener('click', () => this.toggleSidebar());
+        }
+        if (this.sidebarClose) {
+            this.sidebarClose.addEventListener('click', () => this.closeSidebar());
+        }
+        if (this.sidebarOverlay) {
+            this.sidebarOverlay.addEventListener('click', () => this.closeSidebar());
+        }
 
         // Settings modal
         this.settingsBtn.addEventListener('click', () => this.openSettings());
@@ -1416,6 +1440,175 @@ class ASI1 {
         if (this.apiKey && !this.welcomeScreen.classList.contains('hidden')) {
             this.checkAPIKey();
         }
+    }
+
+    /**
+     * Update emotion visualization on avatar
+     * Maps personality emotions to CSS variables for dynamic color/animation
+     */
+    updateEmotionVisualization() {
+        const emotions = this.personality.emotions;
+
+        // Map emotions to hue (color)
+        // Happiness: warm oranges/corals (0-30)
+        // Sadness: cool blues (200-240)
+        // Excitement: bright yellows/oranges (30-60)
+        // Contemplation: purples (270-300)
+        let hue = 18; // Default coral
+        let saturation = 60;
+        let lightness = 62;
+
+        // Calculate hue based on dominant emotion
+        if (emotions.happiness > 0.7) {
+            hue = 18 + (emotions.happiness * 12); // Warm coral to orange
+        } else if (emotions.happiness < 0.3) {
+            hue = 220 + (emotions.sadness || 0) * 20; // Cool blues
+        }
+
+        if (emotions.excitement > 0.7) {
+            hue = 40; // Bright yellow-orange
+            saturation = 70 + (emotions.excitement * 20);
+        }
+
+        if (emotions.contemplation > 0.7) {
+            hue = 280; // Purple
+            saturation = 50;
+        }
+
+        if (emotions.affection > 0.8) {
+            hue = 340; // Pink/red
+            saturation = 60;
+        }
+
+        // Calculate pulse speed based on excitement/energy
+        const energy = (emotions.excitement + emotions.playfulness + emotions.curiosity) / 3;
+        const pulseSpeed = 4 - (energy * 2); // 2s (fast) to 4s (slow)
+
+        // Calculate glow intensity based on overall emotional intensity
+        const emotionalIntensity = Object.values(emotions).reduce((sum, val) => sum + Math.abs(val - 0.5), 0) / Object.keys(emotions).length;
+        const glowIntensity = Math.min(emotionalIntensity * 2, 1);
+
+        // Update CSS variables
+        document.documentElement.style.setProperty('--emotion-hue', hue);
+        document.documentElement.style.setProperty('--emotion-saturation', `${saturation}%`);
+        document.documentElement.style.setProperty('--emotion-lightness', `${lightness}%`);
+        document.documentElement.style.setProperty('--emotion-pulse-speed', `${pulseSpeed}s`);
+        document.documentElement.style.setProperty('--emotion-glow-intensity', glowIntensity);
+
+        console.log('Emotion visualization updated:', {
+            hue,
+            saturation: `${saturation}%`,
+            pulseSpeed: `${pulseSpeed}s`,
+            glowIntensity,
+            emotions
+        });
+    }
+
+    /**
+     * Toggle sidebar open/close
+     */
+    toggleSidebar() {
+        if (this.chatSidebar.classList.contains('open')) {
+            this.closeSidebar();
+        } else {
+            this.openSidebar();
+        }
+    }
+
+    /**
+     * Open chat history sidebar
+     */
+    openSidebar() {
+        this.chatSidebar.classList.add('open');
+        this.sidebarOverlay.classList.add('active');
+        this.loadChatHistory();
+    }
+
+    /**
+     * Close chat history sidebar
+     */
+    closeSidebar() {
+        this.chatSidebar.classList.remove('open');
+        this.sidebarOverlay.classList.remove('active');
+    }
+
+    /**
+     * Load and display chat history in sidebar
+     * Groups messages by date
+     */
+    loadChatHistory() {
+        if (!this.sidebarContent) return;
+
+        // Clear current content
+        this.sidebarContent.innerHTML = '';
+
+        if (this.conversationHistory.length === 0) {
+            this.sidebarContent.innerHTML = `
+                <div class="history-empty">
+                    <p>No chat history yet</p>
+                    <small>Start a conversation to see your history here</small>
+                </div>
+            `;
+            return;
+        }
+
+        // Group messages by date
+        const groupedMessages = this.groupMessagesByDate(this.conversationHistory);
+
+        // Render each date group
+        Object.keys(groupedMessages).forEach(dateLabel => {
+            const messages = groupedMessages[dateLabel];
+
+            // Create date group
+            const dateGroup = document.createElement('div');
+            dateGroup.className = 'history-date-group';
+
+            const dateHeader = document.createElement('div');
+            dateHeader.className = 'history-date';
+            dateHeader.textContent = dateLabel;
+
+            dateGroup.appendChild(dateHeader);
+
+            // Add messages in this group
+            messages.forEach((msg, index) => {
+                const historyItem = document.createElement('div');
+                historyItem.className = 'history-item';
+
+                const role = msg.role === 'user' ? 'You' : 'ASI1';
+                const preview = msg.content.substring(0, 60) + (msg.content.length > 60 ? '...' : '');
+
+                historyItem.innerHTML = `
+                    <div class="history-item-role">${role}</div>
+                    <div class="history-item-preview">${preview}</div>
+                `;
+
+                dateGroup.appendChild(historyItem);
+            });
+
+            this.sidebarContent.appendChild(dateGroup);
+        });
+    }
+
+    /**
+     * Group conversation messages by date
+     */
+    groupMessagesByDate(messages) {
+        const groups = {};
+        const now = new Date();
+
+        messages.forEach(msg => {
+            // Messages don't have timestamps, so group all as "Today" for now
+            // In a real implementation, you'd add timestamps to each message
+            const dateLabel = 'Today';
+
+            if (!groups[dateLabel]) {
+                groups[dateLabel] = [];
+            }
+
+            groups[dateLabel].push(msg);
+        });
+
+        return groups;
     }
 }
 

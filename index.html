@@ -31,11 +31,16 @@
     <header class="header">
         <div class="container">
             <div class="logo">
+                <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle history sidebar">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12h18M3 6h18M3 18h18"/>
+                    </svg>
+                </button>
                 <h1>ASI1</h1>
                 <span class="company">by CTTechnologies</span>
             </div>
             <nav class="nav">
-                <button class="settings-btn" id="settingsBtn">
+                <button class="settings-btn" id="settingsBtn" aria-label="Open settings">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="10" cy="10" r="3"/>
                         <path d="M12 10 L18 10 M2 10 L8 10 M10 2 L10 8 M10 12 L10 18"/>
@@ -44,6 +49,27 @@
             </nav>
         </div>
     </header>
+
+    <!-- Chat History Sidebar -->
+    <aside class="chat-sidebar" id="chatSidebar">
+        <div class="sidebar-header">
+            <h2>Chat History</h2>
+            <button class="sidebar-close" id="sidebarClose" aria-label="Close sidebar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="sidebar-content" id="sidebarContent">
+            <div class="history-empty">
+                <p>No chat history yet</p>
+                <small>Start a conversation to see your history here</small>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <!-- Main Content -->
     <main class="main">
