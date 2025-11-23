@@ -1,0 +1,20 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#D4845C" rx="64"/>
+
+  <!-- Circle representing AI -->
+  <circle cx="256" cy="200" r="80" fill="#FAF8F5" opacity="0.9"/>
+  <circle cx="256" cy="200" r="60" fill="#D4845C"/>
+  <circle cx="256" cy="200" r="40" fill="#FAF8F5" opacity="0.7"/>
+  <circle cx="256" cy="200" r="20" fill="#D4845C"/>
+
+  <!-- Text -->
+  <text x="256" y="380" font-family="serif" font-size="120" font-weight="600"
+        text-anchor="middle" fill="#FAF8F5">ASI1</text>
+
+  <!-- Pulse rings (decorative) -->
+  <circle cx="256" cy="200" r="90" fill="none" stroke="#FAF8F5"
+          stroke-width="2" opacity="0.3"/>
+  <circle cx="256" cy="200" r="100" fill="none" stroke="#FAF8F5"
+          stroke-width="1" opacity="0.2"/>
+</svg>

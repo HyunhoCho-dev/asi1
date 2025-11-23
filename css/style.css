@@ -786,20 +786,238 @@ body {
 }
 
 /* ===== Responsive Design ===== */
-@media (max-width: 768px) {
-    .welcome-title {
-        font-size: 2rem;
-    }
 
-    .welcome-subtitle {
-        font-size: 1rem;
+/* Tablet */
+@media (max-width: 1024px) {
+    .container {
+        max-width: 100%;
+        padding: 0 var(--spacing-sm);
     }
 
     .chat-interface {
-        height: calc(100vh - 100px);
+        height: calc(100vh - 90px);
+    }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    html {
+        font-size: 14px;
+    }
+
+    .header {
+        padding: var(--spacing-sm) 0;
+    }
+
+    .logo h1 {
+        font-size: 1.5rem;
+    }
+
+    .logo .company {
+        font-size: 0.75rem;
+    }
+
+    .settings-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    .welcome-title {
+        font-size: 1.75rem;
+    }
+
+    .welcome-subtitle {
+        font-size: 0.95rem;
+    }
+
+    .start-btn {
+        padding: 0.875rem 1.75rem;
+        font-size: 0.95rem;
+    }
+
+    .chat-interface {
+        height: calc(100vh - 80px);
+    }
+
+    .chat-header {
+        padding: var(--spacing-sm);
+    }
+
+    .status-indicator span {
+        font-size: 0.85rem;
+    }
+
+    .chat-messages {
+        padding: var(--spacing-sm);
+        max-height: calc(100vh - 250px);
+    }
+
+    .message {
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .message-content {
+        padding: var(--spacing-sm);
+        font-size: 0.95rem;
+    }
+
+    .chat-input-container {
+        padding: var(--spacing-sm);
+    }
+
+    .input-wrapper {
+        gap: 0.5rem;
+    }
+
+    .voice-btn, .send-btn {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+    }
+
+    .message-input {
+        font-size: 0.95rem;
+        padding: 0.75rem;
+    }
+
+    .input-footer {
+        font-size: 0.8rem;
     }
 
     .modal-content {
         width: 95%;
+        max-width: none;
+        margin: var(--spacing-sm);
+        max-height: calc(100vh - 2rem);
+        overflow-y: auto;
+    }
+
+    .modal-header h3 {
+        font-size: 1.25rem;
+    }
+
+    .setting-group {
+        margin-bottom: var(--spacing-md);
+    }
+
+    .setting-group label {
+        font-size: 0.9rem;
+    }
+
+    .notification {
+        width: calc(100% - 2rem);
+        max-width: none;
+        left: 1rem;
+        right: 1rem;
+        transform: translateX(0);
     }
 }
+
+/* Small Mobile */
+@media (max-width: 480px) {
+    html {
+        font-size: 13px;
+    }
+
+    .container {
+        padding: 0 0.75rem;
+    }
+
+    .logo h1 {
+        font-size: 1.25rem;
+    }
+
+    .welcome-title {
+        font-size: 1.5rem;
+    }
+
+    .ai-avatar {
+        width: 100px;
+        height: 100px;
+    }
+
+    .avatar-core {
+        width: 40px;
+        height: 40px;
+    }
+
+    .start-btn {
+        padding: 0.75rem 1.5rem;
+        font-size: 0.9rem;
+    }
+
+    .chat-messages {
+        max-height: calc(100vh - 220px);
+    }
+
+    .message-content {
+        padding: 0.75rem;
+    }
+
+    .voice-btn, .send-btn {
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+    }
+
+    .input-footer .tip {
+        font-size: 0.75rem;
+    }
+
+    .modal-body {
+        padding: var(--spacing-sm);
+    }
+
+    .modal-footer {
+        padding: var(--spacing-sm);
+        gap: 0.5rem;
+    }
+
+    .btn-primary, .btn-secondary, .btn-danger {
+        padding: 0.625rem 1.25rem;
+        font-size: 0.85rem;
+    }
+}
+
+/* Landscape orientation for mobile */
+@media (max-height: 600px) and (orientation: landscape) {
+    .welcome-screen {
+        padding: var(--spacing-md) 0;
+    }
+
+    .ai-avatar {
+        width: 80px;
+        height: 80px;
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .welcome-title {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .welcome-subtitle {
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .chat-messages {
+        max-height: calc(100vh - 180px);
+    }
+}
+
+/* Touch-friendly adjustments */
+@media (hover: none) and (pointer: coarse) {
+    .voice-btn, .send-btn, .settings-btn, .close-btn {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .checkbox-label {
+        padding: 0.75rem 0;
+    }
+
+    input[type="range"] {
+        height: 40px;
+    }
+}
+
