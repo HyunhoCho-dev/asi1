@@ -572,7 +572,10 @@ class ASI1 {
         this.sidebarToggle = document.getElementById('sidebarToggle');
         this.sidebarClose = document.getElementById('sidebarClose');
         this.sidebarOverlay = document.getElementById('sidebarOverlay');
-        this.sidebarContent = document.getElementById('sidebarContent');
+        this.sidebarHistoryContent = document.getElementById('sidebarHistoryContent');
+        this.sidebarMemoriesContent = document.getElementById('sidebarMemoriesContent');
+        this.historyTab = document.getElementById('historyTab');
+        this.memoriesTab = document.getElementById('memoriesTab');
 
         // Visualization elements
         this.voiceVisualization = document.getElementById('voiceVisualization');
@@ -632,6 +635,14 @@ class ASI1 {
         }
         if (this.sidebarOverlay) {
             this.sidebarOverlay.addEventListener('click', () => this.closeSidebar());
+        }
+
+        // Sidebar tabs
+        if (this.historyTab) {
+            this.historyTab.addEventListener('click', () => this.switchTab('history'));
+        }
+        if (this.memoriesTab) {
+            this.memoriesTab.addEventListener('click', () => this.switchTab('memories'));
         }
 
         // Settings modal
@@ -1571,7 +1582,46 @@ class ASI1 {
     openSidebar() {
         this.chatSidebar.classList.add('open');
         this.sidebarOverlay.classList.add('active');
-        this.loadChatHistory();
+
+        // Load content based on active tab
+        const activeTab = document.querySelector('.sidebar-tab.active');
+        if (activeTab && activeTab.dataset.tab === 'memories') {
+            this.loadMemoriesView();
+        } else {
+            this.loadChatHistory();
+        }
+    }
+
+    /**
+     * Switch between tabs
+     */
+    switchTab(tabName) {
+        // Update tab buttons
+        const tabs = document.querySelectorAll('.sidebar-tab');
+        tabs.forEach(tab => {
+            if (tab.dataset.tab === tabName) {
+                tab.classList.add('active');
+            } else {
+                tab.classList.remove('active');
+            }
+        });
+
+        // Update content sections
+        const contents = document.querySelectorAll('.sidebar-content');
+        contents.forEach(content => {
+            if (content.dataset.content === tabName) {
+                content.classList.add('active');
+            } else {
+                content.classList.remove('active');
+            }
+        });
+
+        // Load content
+        if (tabName === 'history') {
+            this.loadChatHistory();
+        } else if (tabName === 'memories') {
+            this.loadMemoriesView();
+        }
     }
 
     /**
@@ -1587,13 +1637,13 @@ class ASI1 {
      * Groups messages by date
      */
     loadChatHistory() {
-        if (!this.sidebarContent) return;
+        if (!this.sidebarHistoryContent) return;
 
         // Clear current content
-        this.sidebarContent.innerHTML = '';
+        this.sidebarHistoryContent.innerHTML = '';
 
         if (this.conversationHistory.length === 0) {
-            this.sidebarContent.innerHTML = `
+            this.sidebarHistoryContent.innerHTML = `
                 <div class="history-empty">
                     <p>No chat history yet</p>
                     <small>Start a conversation to see your history here</small>
@@ -1635,8 +1685,125 @@ class ASI1 {
                 dateGroup.appendChild(historyItem);
             });
 
-            this.sidebarContent.appendChild(dateGroup);
+            this.sidebarHistoryContent.appendChild(dateGroup);
         });
+    }
+
+    /**
+     * Load and display memories in sidebar
+     * Groups memories by category
+     */
+    loadMemoriesView() {
+        if (!this.sidebarMemoriesContent) return;
+
+        // Clear current content
+        this.sidebarMemoriesContent.innerHTML = '';
+
+        if (this.longTermMemory.length === 0) {
+            this.sidebarMemoriesContent.innerHTML = `
+                <div class="memories-empty">
+                    <p>No memories stored yet</p>
+                    <small>ASI1 will remember important moments from your conversations</small>
+                </div>
+            `;
+            return;
+        }
+
+        // Group memories by category
+        const groupedMemories = this.groupMemoriesByCategory(this.longTermMemory);
+
+        // Category names in Korean
+        const categoryNames = {
+            user_info: '사용자 정보',
+            experiences: '경험',
+            emotions: '감정',
+            interests: '관심사',
+            relationships: '관계'
+        };
+
+        // Render each category group
+        Object.keys(groupedMemories).forEach(category => {
+            const memories = groupedMemories[category];
+
+            // Create category group
+            const categoryGroup = document.createElement('div');
+            categoryGroup.className = 'memory-category-group';
+
+            const categoryHeader = document.createElement('div');
+            categoryHeader.className = 'memory-category';
+            categoryHeader.textContent = categoryNames[category] || category;
+
+            categoryGroup.appendChild(categoryHeader);
+
+            // Add memories in this category
+            memories.forEach(memory => {
+                const memoryItem = document.createElement('div');
+                memoryItem.className = 'memory-item';
+
+                // Calculate star rating based on importance
+                const stars = '★'.repeat(Math.round(memory.importance * 5));
+
+                // Format timestamp
+                const date = new Date(memory.timestamp);
+                const timeAgo = this.getTimeAgo(date);
+
+                memoryItem.innerHTML = `
+                    <div class="memory-content">${memory.content}</div>
+                    <div class="memory-meta">
+                        <span class="memory-importance">
+                            <span class="importance-stars">${stars}</span>
+                        </span>
+                        <span class="memory-timestamp">${timeAgo}</span>
+                        <span class="memory-access-count">Accessed ${memory.accessCount} times</span>
+                    </div>
+                `;
+
+                categoryGroup.appendChild(memoryItem);
+            });
+
+            this.sidebarMemoriesContent.appendChild(categoryGroup);
+        });
+    }
+
+    /**
+     * Group memories by category
+     */
+    groupMemoriesByCategory(memories) {
+        const groups = {};
+
+        memories.forEach(memory => {
+            const category = memory.category || 'experiences';
+
+            if (!groups[category]) {
+                groups[category] = [];
+            }
+
+            groups[category].push(memory);
+        });
+
+        // Sort memories by importance within each category
+        Object.keys(groups).forEach(category => {
+            groups[category].sort((a, b) => b.importance - a.importance);
+        });
+
+        return groups;
+    }
+
+    /**
+     * Get time ago string for timestamps
+     */
+    getTimeAgo(date) {
+        const now = new Date();
+        const diff = now - date;
+        const seconds = Math.floor(diff / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+
+        if (days > 0) return `${days}일 전`;
+        if (hours > 0) return `${hours}시간 전`;
+        if (minutes > 0) return `${minutes}분 전`;
+        return '방금 전';
     }
 
     /**
