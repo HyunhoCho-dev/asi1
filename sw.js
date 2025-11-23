@@ -5,12 +5,12 @@
 
 const CACHE_NAME = 'asi1-v1';
 const urlsToCache = [
-    '/',
-    '/index.html',
-    '/css/style.css',
-    '/js/config.js',
-    '/js/app.js',
-    '/manifest.json'
+    './',
+    './index.html',
+    './css/style.css',
+    './js/config.js',
+    './js/app.js',
+    './manifest.json'
 ];
 
 // Install event - cache resources
