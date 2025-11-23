@@ -574,6 +574,11 @@ class ASI1 {
         this.sidebarOverlay = document.getElementById('sidebarOverlay');
         this.sidebarContent = document.getElementById('sidebarContent');
 
+        // Visualization elements
+        this.voiceVisualization = document.getElementById('voiceVisualization');
+        this.visualizationText = document.getElementById('visualizationText');
+        this.bottomToggleBar = document.getElementById('bottomToggleBar');
+
         // Modal elements
         this.settingsModal = document.getElementById('settingsModal');
         this.settingsBtn = document.getElementById('settingsBtn');
@@ -807,6 +812,13 @@ class ASI1 {
         this.welcomeScreen.classList.add('hidden');
         this.chatInterface.classList.remove('hidden');
 
+        // Show bottom toggle bar
+        if (this.bottomToggleBar) {
+            setTimeout(() => {
+                this.bottomToggleBar.classList.add('visible');
+            }, 300);
+        }
+
         // Don't restore previous messages to UI on fresh page load
         // This keeps the chat clean, but conversation history is still loaded for context
 
@@ -887,6 +899,14 @@ class ASI1 {
                 this.voiceBtn.classList.add('recording');
                 this.voiceBtn.title = CONFIG.MESSAGES.VOICE_ACTIVE;
 
+                // Show visualization
+                if (this.voiceVisualization) {
+                    this.voiceVisualization.classList.add('active');
+                    if (this.visualizationText) {
+                        this.visualizationText.textContent = 'Listening...';
+                    }
+                }
+
                 // Update status indicator
                 const statusText = document.querySelector('.status-indicator span');
                 if (statusText) {
@@ -904,6 +924,12 @@ class ASI1 {
                 this.isRecording = false;
                 this.voiceBtn.classList.remove('recording');
                 this.voiceBtn.title = CONFIG.MESSAGES.VOICE_INACTIVE;
+
+                // Hide visualization
+                if (this.voiceVisualization) {
+                    this.voiceVisualization.classList.remove('active');
+                    this.voiceVisualization.classList.remove('speaking');
+                }
 
                 // Update status indicator
                 const statusText = document.querySelector('.status-indicator span');
@@ -1219,6 +1245,14 @@ class ASI1 {
                     }
                 }
 
+                // Update visualization to speaking state
+                if (this.voiceVisualization && this.voiceMode) {
+                    this.voiceVisualization.classList.add('speaking');
+                    if (this.visualizationText) {
+                        this.visualizationText.textContent = 'Speaking...';
+                    }
+                }
+
                 if (statusText && !this.voiceMode) {
                     statusText.textContent = CONFIG.MESSAGES.SPEAKING;
                 }
@@ -1239,6 +1273,14 @@ class ASI1 {
                     }, 300); // Small delay to prevent immediate re-trigger
                 }
 
+                // Update visualization back to listening state
+                if (this.voiceVisualization && this.voiceMode) {
+                    this.voiceVisualization.classList.remove('speaking');
+                    if (this.visualizationText) {
+                        this.visualizationText.textContent = 'Listening...';
+                    }
+                }
+
                 if (statusText && !this.voiceMode) {
                     statusText.textContent = 'ASI1 is ready';
                 }
@@ -1257,6 +1299,14 @@ class ASI1 {
                             console.warn('Could not restart recognition:', e);
                         }
                     }, 300);
+                }
+
+                // Update visualization back to listening state on error
+                if (this.voiceVisualization && this.voiceMode) {
+                    this.voiceVisualization.classList.remove('speaking');
+                    if (this.visualizationText) {
+                        this.visualizationText.textContent = 'Listening...';
+                    }
                 }
 
                 // Retry logic for synthesis-failed errors

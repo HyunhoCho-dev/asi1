@@ -31,11 +31,6 @@
     <header class="header">
         <div class="container">
             <div class="logo">
-                <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle history sidebar">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 12h18M3 6h18M3 18h18"/>
-                    </svg>
-                </button>
                 <h1>ASI1</h1>
                 <span class="company">by CTTechnologies</span>
             </div>
@@ -102,6 +97,32 @@
                         <span>ASI1 is ready</span>
                     </div>
                     <div class="tools-used" id="toolsUsed"></div>
+                </div>
+
+                <!-- Voice Visualization -->
+                <div class="voice-visualization" id="voiceVisualization">
+                    <svg class="visualization-canvas" id="visualizationCanvas" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid meet">
+                        <!-- Infinity loop path -->
+                        <path id="infinityPath" class="infinity-loop" d="M 200,200 C 200,100 300,100 400,200 C 500,300 600,300 600,200 C 600,100 500,100 400,200 C 300,300 200,300 200,200 Z" />
+
+                        <!-- Animated particles -->
+                        <circle class="particle particle-1" r="4" opacity="0.8">
+                            <animateMotion dur="8s" repeatCount="indefinite">
+                                <mpath href="#infinityPath"/>
+                            </animateMotion>
+                        </circle>
+                        <circle class="particle particle-2" r="3" opacity="0.6">
+                            <animateMotion dur="10s" repeatCount="indefinite" begin="2s">
+                                <mpath href="#infinityPath"/>
+                            </animateMotion>
+                        </circle>
+                        <circle class="particle particle-3" r="5" opacity="0.7">
+                            <animateMotion dur="12s" repeatCount="indefinite" begin="4s">
+                                <mpath href="#infinityPath"/>
+                            </animateMotion>
+                        </circle>
+                    </svg>
+                    <div class="visualization-text" id="visualizationText">Listening...</div>
                 </div>
 
                 <div class="chat-messages" id="chatMessages">
@@ -239,6 +260,17 @@
             <div class="spinner"></div>
             <p>Thinking...</p>
         </div>
+    </div>
+
+    <!-- Bottom History Toggle Bar -->
+    <div class="bottom-toggle-bar" id="bottomToggleBar">
+        <button class="history-toggle-btn" id="sidebarToggle">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z"/>
+                <path d="M12 6v6l4 2"/>
+            </svg>
+            <span>Chat History</span>
+        </button>
     </div>
 
     <!-- Scripts -->
