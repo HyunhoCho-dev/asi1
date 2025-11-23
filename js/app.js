@@ -1165,22 +1165,12 @@ class ASI1 {
                 lang: utterance.lang
             });
 
-            // Use selected voice from settings, but prefer local voices
+            // Use selected voice from settings
             const voices = this.synthesis.getVoices();
-            let selectedVoice = null;
 
             if (this.settings.selectedVoiceIndex !== undefined && voices[this.settings.selectedVoiceIndex]) {
-                selectedVoice = voices[this.settings.selectedVoiceIndex];
-
-                // If selected voice is online (not local), prefer the local Korean voice instead
-                if (!selectedVoice.localService && this.koreanVoice && this.koreanVoice.localService) {
-                    console.warn('Selected voice is online, using local Korean voice instead for reliability');
-                    utterance.voice = this.koreanVoice;
-                    console.log('Using local Korean voice:', this.koreanVoice.name);
-                } else {
-                    utterance.voice = selectedVoice;
-                    console.log('Using selected voice:', selectedVoice.name, '(Local:', selectedVoice.localService + ')');
-                }
+                utterance.voice = voices[this.settings.selectedVoiceIndex];
+                console.log('Using selected voice:', utterance.voice.name, '(Local:', utterance.voice.localService + ')');
             } else if (this.koreanVoice) {
                 // Fallback to Korean voice
                 utterance.voice = this.koreanVoice;
